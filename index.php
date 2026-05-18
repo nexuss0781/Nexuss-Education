@@ -302,14 +302,119 @@ async function loadModels() {
     }
 }
 
-// Category Management
-function loadCategories() {
-    renderCategories();
-    saveCategories();
+// Category Management - Server-side
+async function loadCategories() {
+    try {
+        const res = await fetch('api.php?action=categories');
+        const data = await res.json();
+        if (data.success) {
+            categories = data.categories;
+            if (!selectedCategory && categories.length > 0) {
+                selectedCategory = categories[0].id;
+            }
+            renderCategories();
+        }
+    } catch (err) {
+        console.error('Failed to load categories:', err);
+        // Fallback to local storage
+        categories = JSON.parse(localStorage.getItem('nexuss_categories')) || [{id: 'default', name: 'My Books', pdfs: []}];
+        renderCategories();
+    }
 }
 
-function saveCategories() {
+async function saveCategories() {
+    // Sync to server
+    for (const cat of categories) {
+        try {
+            await fetch('api.php?action=categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'update', id: cat.id, pdfs: cat.pdfs })
+            });
+        } catch (err) {
+            console.error('Failed to sync category:', err);
+        }
+    }
     localStorage.setItem('nexuss_categories', JSON.stringify(categories));
+}
+
+async function createCategory() {
+    const nameInput = document.getElementById('newCategoryName');
+    const name = nameInput.value.trim();
+    if (!name) return;
+    
+    try {
+        const res = await fetch('api.php?action=categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'create', name })
+        });
+        const data = await res.json();
+        if (data.success) {
+            categories.push({ id: data.id, name: data.name, pdfs: [] });
+            selectedCategory = data.id;
+            nameInput.value = '';
+            hideCreateCategoryModal();
+            renderCategories();
+            addSystemMessage(`✓ Created category: ${data.name}`);
+        } else {
+            alert('Failed: ' + data.error);
+        }
+    } catch (err) {
+        alert('Error creating category');
+    }
+}
+
+async function deleteCategory(id) {
+    if (!confirm('Delete this category and all its PDFs?')) return;
+    
+    try {
+        const res = await fetch('api.php?action=categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'delete', id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            categories = categories.filter(c => c.id !== id);
+            if (selectedCategory === id) {
+                selectedCategory = categories[0]?.id || 'default';
+            }
+            renderCategories();
+            addSystemMessage('✓ Category deleted');
+        } else {
+            alert('Failed: ' + data.error);
+        }
+    } catch (err) {
+        alert('Error deleting category');
+    }
+}
+
+async function saveRenameCategory() {
+    const id = document.getElementById('renameCategoryId').value;
+    const nameInput = document.getElementById('renameCategoryInput');
+    const newName = nameInput.value.trim();
+    if (!newName) return;
+    
+    try {
+        const res = await fetch('api.php?action=categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'rename', id, name: newName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const cat = categories.find(c => c.id === id);
+            if (cat) cat.name = newName;
+            hideRenameCategoryModal();
+            renderCategories();
+            addSystemMessage(`✓ Renamed to: ${newName}`);
+        } else {
+            alert('Failed: ' + data.error);
+        }
+    } catch (err) {
+        alert('Error renaming category');
+    }
 }
 
 function renderCategories() {
@@ -421,19 +526,11 @@ function saveRenameCategory() {
     hideRenameCategoryModal();
 }
 
-function deleteCategory(id) {
-    if (!confirm('Delete this category and all its PDFs?')) return;
-    categories = categories.filter(c => c.id !== id);
-    if (selectedCategory === id) selectedCategory = 'default';
-    saveCategories();
-    renderCategories();
-}
-
 // PDF Upload & Management
 async function handleFileUpload(input) {
     const file = input.files[0];
     if (!file || file.type !== 'application/pdf') {
-        alert('Please select a valid PDF file.');
+        addSystemMessage('✗ Please select a valid PDF file.');
         return;
     }
 
@@ -443,27 +540,26 @@ async function handleFileUpload(input) {
 
     const btn = input.parentElement;
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+    btn.innerHTML = '<div class="flex flex-col items-center gap-1"><svg class="w-5 h-5 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="text-xs text-primary-500">Uploading...</span></div>';
 
     try {
-        const res = await fetch('api.php', { method: 'POST', body: formData });
+        const res = await fetch('api.php?action=upload', { method: 'POST', body: formData });
         const data = await res.json();
         
-        if (data.success) {
-            const cat = categories.find(c => c.id === selectedCategory);
-            if (cat) {
-                cat.pdfs.push({ name: data.filename, path: data.path });
-                saveCategories();
-                renderCategories();
-                loadPdf({ name: data.filename, path: data.path });
-                addSystemMessage(`✓ Uploaded: ${data.filename}`);
-            }
-        } else {
-            throw new Error(data.error || 'Upload failed');
+        if (!data.success) {
+            throw new Error(data.error || 'Upload failed: Invalid action');
+        }
+        
+        const cat = categories.find(c => c.id === selectedCategory);
+        if (cat) {
+            cat.pdfs.push({ name: data.filename, path: data.path });
+            await saveCategories();
+            renderCategories();
+            loadPdf({ name: data.filename, path: data.path });
+            addSystemMessage(`✓ Uploaded: ${data.filename}`);
         }
     } catch (err) {
-        console.error(err);
-        alert('Upload failed: ' + err.message);
+        console.error('Upload error:', err);
         addSystemMessage('✗ Upload failed: ' + err.message);
     } finally {
         btn.innerHTML = originalHtml;
