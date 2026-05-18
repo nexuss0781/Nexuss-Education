@@ -1,86 +1,51 @@
 <?php
-session_start();
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-// Configuration
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { exit(0); }
+
 $booksDir = __DIR__ . '/books/';
-$maxFileSize = 50 * 1024 * 1024; // 50MB
-$allowedTypes = ['application/pdf'];
+if (!file_exists($booksDir)) { mkdir($booksDir, 0755, true); }
 
-// Handle file upload
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_upload'])) {
-    header('Content-Type: application/json');
-    
-    $file = $_FILES['pdf_upload'];
-    
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['success' => false, 'error' => 'Upload error occurred']);
+$action = $_GET['action'] ?? $_POST['action'] ?? '';
+
+if ($action === 'list') {
+    $files = array_diff(scandir($booksDir), ['.', '..']);
+    $pdfs = array_values(array_filter($files, fn($f) => pathinfo($f, PATHINFO_EXTENSION) === 'pdf'));
+    echo json_encode(['success' => true, 'files' => $pdfs]);
+    exit;
+}
+
+if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'No file uploaded or upload error']);
         exit;
     }
     
-    if ($file['size'] > $maxFileSize) {
-        echo json_encode(['success' => false, 'error' => 'File too large (max 50MB)']);
-        exit;
-    }
-    
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mimeType = $finfo->file($file['tmp_name']);
-    
-    if (!in_array($mimeType, $allowedTypes)) {
+    $file = $_FILES['pdf'];
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if ($ext !== 'pdf') {
+        http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Only PDF files are allowed']);
         exit;
     }
     
-    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '', basename($file['name']));
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($file['name']));
     $targetPath = $booksDir . $safeName;
     
     if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-        echo json_encode([
-            'success' => true, 
-            'filename' => $safeName,
-            'path' => 'books/' . $safeName
-        ]);
+        chmod($targetPath, 0644);
+        echo json_encode(['success' => true, 'filename' => $safeName]);
+        exit;
     } else {
+        http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Failed to save file']);
+        exit;
     }
-    exit;
 }
 
-// Get list of books
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'list') {
-    header('Content-Type: application/json');
-    
-    $books = [];
-    if (is_dir($booksDir)) {
-        $files = scandir($booksDir);
-        foreach ($files as $file) {
-            if ($file !== '.' && $file !== '..' && pathinfo($file, PATHINFO_EXTENSION) === 'pdf') {
-                $filePath = $booksDir . $file;
-                $books[] = [
-                    'name' => $file,
-                    'path' => 'books/' . $file,
-                    'size' => filesize($filePath),
-                    'modified' => date('Y-m-d H:i:s', filemtime($filePath))
-                ];
-            }
-        }
-    }
-    
-    echo json_encode(['success' => true, 'books' => $books]);
-    exit;
-}
-
-// Delete book
-if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($_GET['file'])) {
-    header('Content-Type: application/json');
-    
-    $file = basename($_GET['file']);
-    $targetPath = $booksDir . $file;
-    
-    if (file_exists($targetPath) && unlink($targetPath)) {
-        echo json_encode(['success' => true]);
-    } else {
-        echo json_encode(['success' => false, 'error' => 'File not found or could not be deleted']);
-    }
-    exit;
-}
+echo json_encode(['error' => 'Invalid action']);
 ?>
