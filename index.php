@@ -198,6 +198,7 @@ let currentPage = 1;
 let zoom = 1.0;
 let selectedCategory = 'default';
 let systemPrompt = '';
+let currentModel = 'openai/gpt-4o'; // Default to GPT-4o
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -205,7 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadCategories();
     await loadSystemPrompt();
     await initPuterAuth();
-    await loadModels();
+    renderModelSelector();
     setupResizeHandler();
 });
 
@@ -234,18 +235,34 @@ async function loadSystemPrompt() {
     }
 }
 
-// Puter.js Authentication & Models
+// System Prompt Loader
+async function loadSystemPrompt() {
+    try {
+        const response = await fetch('SYSTEM.md');
+        if (response.ok) {
+            systemPrompt = await response.text();
+        } else {
+            systemPrompt = "You are a helpful study assistant. Keep responses concise and educational.";
+        }
+    } catch (e) {
+        systemPrompt = "You are a helpful study assistant. Keep responses concise and educational.";
+    }
+}
+
+// Puter.js Authentication
 async function initPuterAuth() {
     const authBtn = document.getElementById('authBtn');
     const modelStatus = document.getElementById('modelStatus');
     
     // Check if already authenticated
-    if (puter.auth.isSignedIn()) {
+    if (typeof puter !== 'undefined' && puter.auth.isSignedIn()) {
         authBtn.textContent = 'Authenticated';
         authBtn.classList.add('opacity-50', 'cursor-not-allowed');
         authBtn.disabled = true;
-        modelStatus.textContent = '✓ Connected';
-        modelStatus.className = 'text-xs text-green-500';
+        if (modelStatus) {
+            modelStatus.textContent = '✓ Connected';
+            modelStatus.className = 'text-xs text-green-500';
+        }
     } else {
         authBtn.onclick = async () => {
             try {
@@ -253,9 +270,10 @@ async function initPuterAuth() {
                 authBtn.textContent = 'Authenticated';
                 authBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 authBtn.disabled = true;
-                modelStatus.textContent = '✓ Connected';
-                modelStatus.className = 'text-xs text-green-500';
-                await loadModels();
+                if (modelStatus) {
+                    modelStatus.textContent = '✓ Connected';
+                    modelStatus.className = 'text-xs text-green-500';
+                }
                 addSystemMessage("Successfully authenticated with Puter.js!");
             } catch (err) {
                 console.error('Auth error:', err);
@@ -294,27 +312,15 @@ const PREMIUM_MODELS = [
   { id: "nvidia/nemotron-nano-12b-2-vl", name: "Nemotron Nano 12B", provider: "NVIDIA", desc: "Hybrid Mamba-Transformer" }
 ];
 
-let currentModel = PREMIUM_MODELS[0].id; // Default to GPT-4o
-let systemPrompt = "You are Nexuss, an elite educational AI assistant..."; // Fallback
-
-// Load System Prompt from SYSTEM.md via API
-async function loadSystemPrompt() {
-  try {
-    const res = await fetch('api.php?action=get_system_prompt');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && data.prompt) systemPrompt = data.prompt;
-    }
-  } catch (e) { console.warn('Could not load SYSTEM.md, using default'); }
-}
-
 // Render Elegant Model Selector
 function renderModelSelector() {
   const selector = document.getElementById('modelSelector');
   const status = document.getElementById('modelStatus');
   
+  if (!selector) return;
+  
   selector.innerHTML = '';
-  status.textContent = '';
+  if (status) status.textContent = '';
   
   const selectWrapper = document.createElement('div');
   selectWrapper.className = 'relative group flex-1 max-w-md';
@@ -347,7 +353,7 @@ function renderModelSelector() {
   descEl.id = 'modelDesc';
   descEl.className = 'hidden lg:block text-xs text-slate-500 font-medium truncate max-w-[180px]';
   const selected = PREMIUM_MODELS.find(m => m.id === currentModel);
-  descEl.textContent = selected ? selected.desc : '';
+  if (selected && descEl) descEl.textContent = selected.desc;
   selector.appendChild(descEl);
   
   selectEl.addEventListener('change', (e) => {
@@ -367,11 +373,6 @@ function renderModelSelector() {
       descEl.textContent = sel.desc;
     }
   }
-}
-
-async function loadModels() {
-  // Just render the curated list - no need to fetch from Puter
-  renderModelSelector();
 }
 
 // Category Management - Server-side
