@@ -271,6 +271,18 @@ if ($action === 'list') {
     exit;
 }
 
+// Handle system prompt retrieval
+if ($action === 'get_system_prompt') {
+    $systemFile = __DIR__ . '/SYSTEM.md';
+    if (file_exists($systemFile)) {
+        $prompt = file_get_contents($systemFile);
+        echo json_encode(['success' => true, 'prompt' => $prompt]);
+    } else {
+        echo json_encode(['success' => true, 'prompt' => 'You are a helpful educational assistant.']);
+    }
+    exit;
+}
+
 http_response_code(400);
 echo json_encode(['success' => false, 'error' => 'Invalid action: ' . ($action ?: 'none provided')]);
 ?>
