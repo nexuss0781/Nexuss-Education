@@ -970,8 +970,9 @@
                         bookSelect.appendChild(option);
                     });
                     
-                    if (data.books.length > 0) {
-                        addMessage('system', `📚 Found ${data.books.length} PDF(s) in your library.`);
+                    // Only show message if there are books AND user hasn't loaded one yet
+                    if (data.books.length > 0 && !pdfFrame.src) {
+                        // Silent load - no system message on initial load
                     }
                 }
             } catch (error) {
@@ -1185,7 +1186,49 @@ Be friendly, supportive, and educational. Keep responses focused and not overwhe
             } catch (error) {
                 console.error('AI error:', error);
                 document.getElementById('typingIndicator')?.remove();
-                addMessage('system', '❌ Failed to get AI response. Please try again.');
+                
+                // Graceful error handling
+                let errorMessage = '❌ Failed to get AI response. Please try again.';
+                let errorType = 'unknown';
+                
+                if (error.message && error.message.includes('usage-limited-chat')) {
+                    errorMessage = '⚠️ **Usage Limit Reached**: You\'ve hit the free tier limit for today. Please try again later or upgrade your Puter plan.';
+                    errorType = 'limit';
+                } else if (error.message && error.message.includes('rate')) {
+                    errorMessage = '⏳ **Too Many Requests**: Please wait a moment before sending another message.';
+                    errorType = 'rate';
+                } else if (error.message && (error.message.includes('auth') || error.message.includes('login'))) {
+                    errorMessage = '🔒 **Authentication Required**: Please log in to your Puter account to use AI features.';
+                    errorType = 'auth';
+                    setTimeout(() => {
+                        if(confirm('Would you like to log in to Puter now?')) {
+                            location.reload();
+                        }
+                    }, 1000);
+                } else if (error.message && error.message.includes('image')) {
+                    errorMessage = '🖼️ **Image Error**: Could not process the PDF page. Try reloading the page.';
+                    errorType = 'image';
+                }
+                
+                // Add styled error message
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'message system';
+                errorDiv.innerHTML = `<div class="bg-red-900/20 border border-red-800/50 rounded-lg p-3 text-red-400">${formatResponse(errorMessage)}</div>`;
+                
+                // Add retry button for non-auth errors
+                if (errorType !== 'auth') {
+                    const retryBtn = document.createElement('button');
+                    retryBtn.className = 'mt-2 text-xs text-violet-400 hover:text-violet-300 underline';
+                    retryBtn.innerText = 'Try Again';
+                    retryBtn.onclick = () => {
+                        errorDiv.remove();
+                        sendMessage(); // Retry with same message
+                    };
+                    errorDiv.querySelector('div').appendChild(retryBtn);
+                }
+                
+                chatMessages.appendChild(errorDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         }
         
