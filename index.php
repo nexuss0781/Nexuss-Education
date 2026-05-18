@@ -97,11 +97,12 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
     <!-- Chat Area -->
     <main class="flex-1 flex flex-col min-w-0 bg-gray-50 dark:bg-dark-950">
         <!-- Model Selector -->
-        <div class="p-3 bg-white dark:bg-dark-900 border-b border-gray-200 dark:border-dark-800 flex items-center gap-3">
-            <label class="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">AI Model:</label>
-            <select id="modelSelector" class="flex-1 max-w-md px-3 py-1.5 bg-gray-100 dark:bg-dark-800 border border-gray-300 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <option value="">Loading models...</option>
-            </select>
+        <div class="p-3 bg-white dark:bg-dark-900 border-b border-gray-200 dark:border-dark-800 flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">AI Model:</label>
+            </div>
+            <div id="modelSelector" class="flex items-center gap-3 flex-1"></div>
             <div id="modelStatus" class="text-xs text-gray-500 dark:text-gray-400"></div>
         </div>
 
@@ -264,42 +265,113 @@ async function initPuterAuth() {
     }
 }
 
-async function loadModels() {
-    const selector = document.getElementById('modelSelector');
-    const status = document.getElementById('modelStatus');
-    
-    if (!puter.auth.isSignedIn()) {
-        selector.innerHTML = '<option value="">Sign in to load models</option>';
-        return;
-    }
+// Premium AI Models List (Curated for Vision & Reasoning)
+const PREMIUM_MODELS = [
+  { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI", desc: "Flagship multimodal model" },
+  { id: "anthropic/claude-opus-4.7", name: "Claude Opus 4.7", provider: "Anthropic", desc: "Complex reasoning specialist" },
+  { id: "x-ai/grok-2-vision-1212", name: "Grok 2 Vision", provider: "xAI", desc: "Advanced visual accuracy" },
+  { id: "qwen/qvq-max", name: "QVQ Max", provider: "Qwen", desc: "Deep multimodal reasoning" },
+  { id: "qwen/qwen-vl-max", name: "Qwen VL Max", provider: "Qwen", desc: "Top-tier vision-language" },
+  { id: "baidu/ernie-4.5-vl-424b-a47b", name: "ERNIE 4.5 VL", provider: "Baidu", desc: "Massive 424B parameter model" },
+  { id: "mistralai/mistral-large-3", name: "Mistral Large 3", provider: "Mistral AI", desc: "675B MoE frontier model" },
+  { id: "qwen/qwen3-vl-235b-a22b-instruct", name: "Qwen3 VL 235B", provider: "Qwen", desc: "Flagship 256K context" },
+  { id: "stepfun-ai/step3", name: "Step3", provider: "StepFun", desc: "Multimodal MoE reasoning" },
+  { id: "opengvlab/internvl3-78b", name: "InternVL3 78B", provider: "OpenGVLab", desc: "Open-source multimodal" },
+  { id: "z-ai/glm-4.6v", name: "GLM 4.6V", provider: "Z.AI", desc: "Native multimodal calling" },
+  { id: "qwen/qwen2.5-vl-72b-instruct", name: "Qwen2.5 VL 72B", provider: "Qwen", desc: "Open-source flagship" },
+  { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5", provider: "Moonshot AI", desc: "Trillion-parameter MoE" },
+  { id: "perceptron/perceptron-mk1", name: "Perceptron Mk1", provider: "Perceptron", desc: "Video & spatial reasoning" },
+  { id: "mistralai/mistral-medium-3.5", name: "Mistral Medium 3.5", provider: "Mistral AI", desc: "Dense 128B model" },
+  { id: "qwen/qwen3.5-397b-a17b", name: "Qwen3.5 397B", provider: "Qwen", desc: "Native vision-language MoE" },
+  { id: "z-ai/glm-5v-turbo", name: "GLM 5V Turbo", provider: "Z.AI", desc: "Visual perception to code" },
+  { id: "allenai/molmo-2-8b", name: "Molmo2 8B", provider: "Allen AI", desc: "Efficient open VLM" },
+  { id: "meta-llama/llama-3.2-11b-vision-instruct", name: "Llama 3.2 11B Vision", provider: "Meta", desc: "Visual recognition expert" },
+  { id: "mistralai/pixtral-12b", name: "Pixtral 12B", provider: "Mistral AI", desc: "First Mistral multimodal" },
+  { id: "rekaai/reka-edge", name: "Reka Edge", provider: "Reka AI", desc: "Efficient visual reasoning" },
+  { id: "bytedance/ui-tars-1.5-7b", name: "UI-TARS 7B", provider: "ByteDance", desc: "GUI automation agent" },
+  { id: "qwen/qwen3-vl-8b-instruct", name: "Qwen3 VL 8B", provider: "Qwen", desc: "Compact high-performance" },
+  { id: "z-ai/glm-4.6v-flash", name: "GLM 4.6V Flash", provider: "Z.AI", desc: "Lightweight 9B variant" },
+  { id: "nvidia/nemotron-nano-12b-2-vl", name: "Nemotron Nano 12B", provider: "NVIDIA", desc: "Hybrid Mamba-Transformer" }
+];
 
-    try {
-        status.textContent = 'Loading...';
-        const allModels = await puter.ai.listModels();
-        
-        selector.innerHTML = '';
-        
-        if (allModels && allModels.length > 0) {
-            // Group by provider if possible, or just list all
-            allModels.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model.id || model.name;
-                option.textContent = model.id || model.name;
-                if ((model.id || model.name).includes('gpt-4o')) option.selected = true;
-                selector.appendChild(option);
-            });
-            status.textContent = `${allModels.length} models available`;
-            status.className = 'text-xs text-gray-500 dark:text-gray-400';
-        } else {
-            selector.innerHTML = '<option value="gpt-4o">gpt-4o (default)</option>';
-            status.textContent = 'Using default';
-        }
-    } catch (err) {
-        console.error('Error loading models:', err);
-        selector.innerHTML = '<option value="gpt-4o">gpt-4o (fallback)</option>';
-        status.textContent = 'Fallback mode';
-        status.className = 'text-xs text-yellow-500';
+let currentModel = PREMIUM_MODELS[0].id; // Default to GPT-4o
+let systemPrompt = "You are Nexuss, an elite educational AI assistant..."; // Fallback
+
+// Load System Prompt from SYSTEM.md via API
+async function loadSystemPrompt() {
+  try {
+    const res = await fetch('api.php?action=get_system_prompt');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.prompt) systemPrompt = data.prompt;
     }
+  } catch (e) { console.warn('Could not load SYSTEM.md, using default'); }
+}
+
+// Render Elegant Model Selector
+function renderModelSelector() {
+  const selector = document.getElementById('modelSelector');
+  const status = document.getElementById('modelStatus');
+  
+  selector.innerHTML = '';
+  status.textContent = '';
+  
+  const selectWrapper = document.createElement('div');
+  selectWrapper.className = 'relative group flex-1 max-w-md';
+  
+  const selectEl = document.createElement('select');
+  selectEl.id = 'aiModelSelect';
+  selectEl.className = 'appearance-none w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all cursor-pointer shadow-sm';
+  
+  PREMIUM_MODELS.forEach(m => {
+    const option = document.createElement('option');
+    option.value = m.id;
+    option.textContent = `${m.name} (${m.provider})`;
+    if (m.id === currentModel) option.selected = true;
+    selectEl.appendChild(option);
+  });
+  
+  const arrowIcon = document.createElement('div');
+  arrowIcon.className = 'absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400';
+  arrowIcon.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>';
+  
+  const focusLine = document.createElement('div');
+  focusLine.className = 'absolute -bottom-1 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity';
+  
+  selectWrapper.appendChild(selectEl);
+  selectWrapper.appendChild(arrowIcon);
+  selectWrapper.appendChild(focusLine);
+  selector.appendChild(selectWrapper);
+  
+  const descEl = document.createElement('div');
+  descEl.id = 'modelDesc';
+  descEl.className = 'hidden lg:block text-xs text-slate-500 font-medium truncate max-w-[180px]';
+  const selected = PREMIUM_MODELS.find(m => m.id === currentModel);
+  descEl.textContent = selected ? selected.desc : '';
+  selector.appendChild(descEl);
+  
+  selectEl.addEventListener('change', (e) => {
+    currentModel = e.target.value;
+    const sel = PREMIUM_MODELS.find(m => m.id === currentModel);
+    if (sel && descEl) descEl.textContent = sel.desc;
+    localStorage.setItem('nexuss_selected_model', currentModel);
+  });
+
+  // Restore saved model
+  const savedModel = localStorage.getItem('nexuss_selected_model');
+  if (savedModel && PREMIUM_MODELS.find(m => m.id === savedModel)) {
+    currentModel = savedModel;
+    selectEl.value = savedModel;
+    if (descEl) {
+      const sel = PREMIUM_MODELS.find(m => m.id === savedModel);
+      descEl.textContent = sel.desc;
+    }
+  }
+}
+
+async function loadModels() {
+  // Just render the curated list - no need to fetch from Puter
+  renderModelSelector();
 }
 
 // Category Management - Server-side
