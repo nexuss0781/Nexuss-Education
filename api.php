@@ -20,13 +20,15 @@ if (!file_exists($categoriesDir)) { mkdir($categoriesDir, 0755, true); }
 // Get action from query string or POST body
 $action = $_GET['action'] ?? '';
 if (empty($action) && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Try to get action from POST data
-    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-    if (strpos($contentType, 'multipart/form-data') !== false) {
-        $action = $_POST['action'] ?? '';
-    } elseif (strpos($contentType, 'application/json') !== false) {
-        $input = json_decode(file_get_contents('php://input'), true);
-        $action = $input['action'] ?? '';
+    // Try to get action from POST data (multipart/form-data or JSON)
+    if (isset($_POST['action'])) {
+        $action = $_POST['action'];
+    } else {
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($contentType, 'application/json') !== false) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $action = $input['action'] ?? '';
+        }
     }
 }
 
