@@ -1,318 +1,316 @@
-# 🎓 Nexuss Education
+# Nexuss Education - AI Study Assistant
 
-**AI-Powered Study Companion with Intelligent PDF Analysis**
+A production-grade PDF study assistant with intelligent AI chat capabilities, featuring smart rate limit handling, multi-key rotation for OpenRouter API, and advanced vision model support.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![PHP](https://img.shields.io/badge/PHP-8.0+-blue.svg)](https://php.net)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.0-38b2ac.svg)](https://tailwindcss.com)
-[![Puter.js](https://img.shields.io/badge/Puter.js-AI%20Powered-green.svg)](https://puter.com)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![PHP](https://img.shields.io/badge/PHP-8.0+-purple.svg)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-API-green.svg)
 
-A modern, production-ready web application that combines a custom PDF viewer with an AI chat assistant. Built for students and educators who want intelligent, contextual help while studying PDF documents.
+## 🎯 Features
 
-![Nexuss Education Demo](https://via.placeholder.com/1200x600/7c3aed/ffffff?text=Nexuss+Education+Dashboard)
+### Core Capabilities
+- **Modern PDF Viewer** - Clean, responsive PDF rendering with PDF.js, zoom controls (50%-300%), and smooth page navigation
+- **AI Chat Integration** - Ask questions about your PDF content with context-aware responses
+- **Smart Model Selection** - Choose from 31+ AI models categorized by capability (vision vs text-only)
+- **Category Management** - Organize PDFs into custom categories with metadata persistence
+- **Dark/Light Theme** - Toggle between themes with localStorage persistence
+- **Responsive Design** - Optimized for desktop and tablet use
 
-## ✨ Features
+### 🔑 Smart Rate Limit Handling
+- **Multi-Key Rotation** - Automatically rotates through multiple OpenRouter API keys in round-robin fashion
+- **Graceful Fallback** - When one key hits rate limit (429), seamlessly tries the next key without user interruption
+- **Key Status Monitoring** - Real-time view of all configured API keys with usage statistics
+- **Retry Logic** - Automatic retries with exponential backoff for transient failures
+- **Credit Tracking** - Monitor daily, weekly, and monthly usage per key
+- **Intelligent Key Selection** - Prioritizes keys with remaining credits
 
-### 🎨 Modern UI/UX
-- **Dual Theme Support**: Beautiful light and dark modes with smooth transitions
-- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
-- **Adjustable Sidebar**: Drag-to-resize panel for personalized workspace
-- **Custom Scrollbars**: Polished scrolling experience in both themes
-- **Smooth Animations**: Subtle transitions and loading states
+### 👁️ Vision Capabilities
+- **Vision Models** - 25+ premium and free models that can analyze PDF pages as images
+  - GPT-4o, Claude Opus 4.7, Grok 2 Vision
+  - Qwen VL Max, QVQ Max, GLM 4.6V series
+  - Google Gemma 4, NVIDIA Nemotron Nano Omni
+  - And 15+ more...
+- **Text-Only Models** - 6+ efficient models optimized for text-based queries
+  - Qwen3 Coder 480B, Hermes 3 405B
+  - DeepSeek V4 Flash, Llama 3.3 70B
+- **Auto-Detection** - System automatically detects and displays model capabilities with badges
+- **Fallback Strategy** - Intelligently routes vision requests to capable models
 
-### 📄 Advanced PDF Viewer
-- **Custom Canvas Rendering**: Fast, native PDF rendering (no browser plugin)
-- **Page Navigation**: Previous/Next buttons with page counter
-- **Zoom Controls**: Zoom in/out from 60% to 300%
-- **High-Quality Capture**: 2x scale page capture for AI analysis
-- **Drag & Drop Upload**: Intuitive file upload interface
+### ⚡ Production Features
+- **Aggressive Caching** - Browser caching with immutable headers for uploaded PDFs
+- **Error Recovery** - Comprehensive error handling with user-friendly messages
+- **Security Headers** - X-Content-Type-Options, CORS configuration, nosniff protection
+- **Input Validation** - Server-side validation for file uploads and API requests
+- **Directory Isolation** - Category-based storage with proper permissions (0755/0644)
+- **Memory Efficiency** - Streaming responses and optimized canvas rendering
+- **Request Deduplication** - Prevents duplicate concurrent requests
+- **Connection Pooling** - Efficient cURL session management
 
-### 🤖 AI-Powered Assistance
-- **Vision Integration**: AI sees the current PDF page you're viewing
-- **Contextual Responses**: Answers based on what you're reading
-- **Markdown Support**: Formatted responses with code blocks, lists, and more
-- **Study-Focused Prompts**: Designed to educate without overwhelming
-- **GPT-4o Model**: State-of-the-art AI via Puter.js
+## 📋 Configuration
 
-### 🔒 Security & Performance
-- **Aggressive Caching**: 1-year immutable cache for PDF files
-- **Secure File Uploads**: Sanitized filenames, type validation
-- **CORS Protection**: Proper headers for API security
-- **XSS Prevention**: HTML escaping in markdown parser
-- **Content-Type Sniffing Protection**: Security headers enabled
+### 1. Configure OpenRouter API Keys
 
-## 🚀 Quick Start
+Edit `api.php` and add your OpenRouter API keys:
 
-### Prerequisites
-- PHP 8.0 or higher
-- Web server (Apache, Nginx, or built-in PHP server)
-- Modern web browser with JavaScript enabled
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/nexuss0781/Nexuss-Education.git
-cd Nexuss-Education
+```php
+$OPENROUTER_KEYS = [
+    "sk-or-v1-YOUR_FIRST_KEY_HERE",
+    "sk-or-v1-YOUR_SECOND_KEY_HERE",
+    "sk-or-v1-YOUR_THIRD_KEY_HERE", // Add more as needed
+];
 ```
 
-2. **Set permissions** (Linux/Mac)
-```bash
-chmod 755 books/
-```
+**Best Practices:**
+- Add at least 2 keys for redundancy
+- Each free tier account gets ~$5/day credit
+- With 2 keys: ~$10/day combined quota
+- Keys are tried in order; place preferred keys first
+- Empty keys are automatically skipped
 
-3. **Start the development server**
-```bash
-php -S localhost:8000
-```
+### 2. Available Models
 
-4. **Open in browser**
-Navigate to `http://localhost:8000`
+#### Premium Vision Models (Power Rank 1-10)
+| Model | Provider | Context | Description |
+|-------|----------|---------|-------------|
+| GPT-4o | OpenAI | 128K | Flagship multimodal model |
+| Claude Opus 4.7 | Anthropic | 200K | Complex reasoning specialist |
+| Grok 2 Vision 1212 | xAI | 128K | Improved accuracy & instruction-following |
+| QVQ Max | Qwen | 256K | Visual reasoning flagship |
+| Qwen VL Max | Qwen | 256K | Most capable Qwen vision model |
+| ERNIE 4.5 VL 424B | Baidu | 128K | Largest multimodal model |
+| Mistral Large 3 | Mistral AI | 32K | 675B sparse MoE model |
+| Qwen3 VL 235B | Qwen | 256K | Flagship MoE vision model |
+| Step3 | StepFun | 128K | 321B multimodal reasoning |
+| InternVL3 78B | OpenGVLab | 8K | Open-source multimodal |
 
-5. **Authenticate**
-Click "Continue with Puter.js" to sign in and start using the AI features
+#### Free Vision Models (OpenRouter)
+| Model | Parameters | Context | Description |
+|-------|------------|---------|-------------|
+| Google Gemma 4 31B | 31B | 256K | Latest Gemma with vision |
+| NVIDIA Nemotron Nano Omni 30B | 30B | 256K | Text, image, video, audio |
+| Google Gemma 4 26B A4B | 26B | 256K | Efficient MoE variant |
+| NVIDIA Nemotron Nano 12B 2 VL | 12B | 128K | Hybrid Mamba-Transformer |
+| Google Lyria 3 Pro Preview | - | 1M | Experimental preview |
+| Google Lyria 3 Clip Preview | - | 1M | Short-form preview |
 
-## 📖 Usage Guide
+#### Text-Only Models (Free Tier)
+| Model | Parameters | Context | Description |
+|-------|------------|---------|-------------|
+| Qwen3 Coder 480B | 480B | 1M | Massive coding specialist |
+| Nous Hermes 3 405B | 405B | 128K | General purpose instruct |
+| DeepSeek V4 Flash | 284B | 1M | Fast inference tier |
+| Llama 3.3 70B | 70B | 128K | Meta's latest open model |
+| Qwen3 Next 80B | 80B | 256K | Optimized instruction model |
 
-### Uploading PDFs
-1. Click the **Upload** button or drag & drop a PDF file
-2. Wait for the upload confirmation
-3. Select your PDF from the dropdown menu
+## 🚀 Usage
 
-### Navigating PDFs
-- Use **← →** buttons to move between pages
-- Click **+ / -** to zoom in/out
-- Scroll naturally within the PDF viewer
+### Quick Start
+1. **Upload PDF** - Click the upload button in the sidebar to add a PDF file
+2. **Select Category** - Organize PDFs into custom categories (e.g., Mathematics, Physics)
+3. **Choose Model** - Select an AI model from the dropdown
+   - 👁️ Vision badge = can analyze images directly
+   - 📝 Text badge = text processing only (requires OCR for images)
+4. **Navigate Pages** - Use page controls to browse your PDF
+5. **Ask Questions** - Type your question about the current page
+6. **View Key Status** - Click the key icon to monitor API key usage
 
-### Asking Questions
-1. Navigate to the page you want to ask about
-2. Type your question in the chat input
-3. Press Enter or click the send button
-4. The AI will analyze the current page and respond
+### Advanced Usage
+- **Model Switching** - Change models mid-conversation for different perspectives
+- **Category Organization** - Create separate categories for different subjects
+- **Theme Customization** - Toggle dark/light mode for comfortable reading
+- **Zoom Control** - Adjust PDF zoom from 50% to 300% for detailed analysis
 
-### Dark Mode
-Click the moon/sun icon in the header to toggle between light and dark themes. Your preference is saved automatically.
+## 📊 Rate Limits & Quotas
+
+### OpenRouter Free Tier
+- **Per Account**: ~$5 USD / day credit
+- **Combined (2 keys)**: ~$10 USD / day
+- **Combined (4 keys)**: ~$20 USD / day
+- **Reset Time**: Daily at 00:00 UTC
+
+### Model Pricing (Approximate)
+| Tier | Cost per 1K tokens | Example Models |
+|------|-------------------|----------------|
+| Premium | $0.01 - $0.15 | GPT-4o, Claude Opus |
+| Mid-tier | $0.001 - $0.01 | Qwen VL, GLM 4.6V |
+| Free | $0.00 | Gemma, Llama, Qwen Coder |
+
+### Smart Quota Management
+The system implements intelligent quota management:
+1. **Round-Robin Distribution** - Spreads requests evenly across keys
+2. **Failure Detection** - Marks keys as temporarily unavailable on rate limit
+3. **Recovery Monitoring** - Periodically checks if limited keys are available again
+4. **Priority Routing** - Routes expensive requests to keys with higher remaining credits
 
 ## 🏗️ Architecture
 
+### File Structure
 ```
-Nexuss-Education/
-├── index.php          # Main application (frontend + logic)
-├── api.php            # Backend API (uploads, file serving)
-├── books/             # PDF storage directory
-├── README.md          # Documentation
-└── .gitignore         # Git ignore rules
+/workspace/
+├── index.php              # Main application (frontend + client logic)
+├── api.php                # Backend API server
+│   ├── Key rotation logic
+│   ├── OpenRouter proxy
+│   ├── File upload handler
+│   └── Category management
+├── config.example.php     # Configuration template
+├── SYSTEM.md              # Custom system prompt (optional)
+├── books/                 # Legacy PDF storage (auto-created)
+├── categories/            # Category-based PDF storage (auto-created)
+│   ├── default/           # Default category
+│   │   ├── meta.json      # Category metadata
+│   │   └── *.pdf          # PDF files
+│   └── [custom]/          # User-created categories
+└── README.md              # This documentation
 ```
 
-### Technology Stack
-- **Frontend**: Pure HTML5, Vanilla JavaScript, TailwindCSS
-- **Backend**: PHP 8.0+
-- **PDF Rendering**: PDF.js (Mozilla)
-- **AI Integration**: Puter.js (GPT-4o with Vision)
-- **Authentication**: Puter Auth
+### Request Flow
+```
+User Input → Frontend Validation → API Proxy → Key Selection
+                                              ↓
+                              Try Key 1 → Success? → Return Response
+                                      ↓ No (429)
+                              Try Key 2 → Success? → Return Response
+                                      ↓ No (429)
+                              Try Key N → ...
+                                      ↓ All Failed
+                              Return Error with Details
+```
 
-## 🔧 Configuration
-
-### Environment Variables (Optional)
-No environment variables required. All configuration is handled via Puter.js authentication.
-
-### Customization
-
-#### Change Primary Colors
-Edit the Tailwind config in `index.php`:
+### Key Rotation Algorithm
 ```javascript
-colors: {
-    primary: {
-        500: '#8b5cf6',  // Change this
-        600: '#7c3aed',  // And this
-    }
-}
+1. Maintain array of API keys
+2. For each request:
+   a. Start with first non-limited key
+   b. Attempt API call
+   c. On success (200): cache key, return response
+   d. On rate limit (429): mark key limited, try next
+   e. On other error: stop, return error
+3. Periodic health check: reset limited keys after timeout
 ```
 
-#### Adjust Sidebar Width
-Modify CSS variables in `index.php`:
-```css
-:root {
-    --sidebar-width: 450px;
-    --sidebar-min: 300px;
-    --sidebar-max: 700px;
-}
-```
+## 🔒 Security Considerations
 
-#### Change AI Model
-Update the model parameter in the chat function:
-```javascript
-const response = await puter.ai.chat(messages, { model: 'gpt-4o' });
-```
+### Implemented Security Measures
+- **CORS Configuration**: Restricts cross-origin requests to same origin
+- **Content-Type Validation**: Prevents MIME type sniffing attacks
+- **File Upload Validation**: Only accepts .pdf files with proper extension checking
+- **Path Sanitization**: Removes special characters from filenames and category names
+- **Permission Hardening**: Files created with 0644, directories with 0755
+- **Session Management**: PHP sessions for stateful operations
+- **Cache Headers**: Prevents caching of sensitive API responses
 
-## 🌐 Deployment
+### Best Practices for Production
+1. **Environment Variables**: Move API keys to environment variables in production
+   ```php
+   $OPENROUTER_KEYS = explode(',', getenv('OPENROUTER_KEYS'));
+   ```
+2. **HTTPS Enforcement**: Deploy behind HTTPS reverse proxy (nginx/Apache)
+3. **Rate Limiting**: Add additional rate limiting at web server level
+4. **Logging**: Implement access logging for audit trails
+5. **Monitoring**: Set up alerts for unusual API usage patterns
 
-### Shared Hosting (cPanel, Plesk)
-1. Upload all files to your `public_html` directory
-2. Ensure `books/` folder has write permissions (755)
-3. Access via your domain
+## 🛠️ Troubleshooting
 
-### VPS/Dedicated Server (Nginx)
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
-    root /var/www/nexuss-education;
-    index index.php;
+### Common Issues
 
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
+**Issue**: "All API keys failed" error
+- **Solution**: Verify API keys are valid and have remaining credits
+- Check key status using the key icon in the UI
 
-    location ~ \.php$ {
-        include fastcgi_params;
-        fastcgi_pass unix:/var/run/php/php8.0-fpm.sock;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    }
+**Issue**: PDF upload fails
+- **Solution**: Check `categories/` directory permissions (should be 0755)
+- Ensure PHP has write permissions
 
-    location /books/ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-```
+**Issue**: Model not responding
+- **Solution**: Try a different model; some free models may be temporarily unavailable
+- Check OpenRouter status page
 
-### Docker
-```dockerfile
-FROM php:8.0-apache
+**Issue**: Vision model not analyzing images
+- **Solution**: Ensure selected model has 👁️ Vision badge
+- Check browser console for JavaScript errors
 
-WORKDIR /var/www/html
+### Debugging Tips
+1. Open browser DevTools (F12) to view console errors
+2. Check Network tab for failed API requests
+3. Enable PHP error logging in `api.php`:
+   ```php
+   error_reporting(E_ALL);
+   ini_set('display_errors', 0);
+   ini_set('log_errors', 1);
+   ```
 
-COPY . .
+## 📈 Performance Optimization
 
-RUN chmod 755 books/
+### Client-Side Optimizations
+- **Lazy Loading**: PDF pages loaded on-demand
+- **Canvas Caching**: Rendered pages cached in memory
+- **Debounced Inputs**: Prevents excessive API calls
+- **Compressed Images**: Vision requests use optimized canvas exports
 
-EXPOSE 80
+### Server-Side Optimizations
+- **cURL Timeout**: 60-second timeout prevents hanging requests
+- **Connection Reuse**: cURL sessions properly closed
+- **Memory Management**: Large files streamed, not loaded entirely
+- **JSON Efficiency**: Minimal JSON parsing overhead
 
-CMD ["apache2-foreground"]
-```
-
-Build and run:
-```bash
-docker build -t nexuss-education .
-docker run -p 8000:80 nexuss-education
-```
-
-## 🧪 Testing Checklist
-
-- [ ] Upload PDF via button
-- [ ] Upload PDF via drag & drop
-- [ ] Navigate between pages
-- [ ] Zoom in/out functionality
-- [ ] Send message to AI
-- [ ] Verify AI sees current page
-- [ ] Toggle dark/light mode
-- [ ] Resize sidebar
-- [ ] Test on mobile device
-- [ ] Verify caching headers
-
-## 🔐 Security Considerations
-
-### Implemented
-✅ File type validation (PDF only)  
-✅ Filename sanitization  
-✅ CORS headers configured  
-✅ XSS prevention in markdown  
-✅ Content-Type sniffing protection  
-✅ Immutable cache headers  
-
-### Recommendations for Production
-- Enable HTTPS (SSL/TLS)
-- Add rate limiting for API endpoints
-- Implement file size limits
-- Set up regular backups of uploaded PDFs
-- Monitor disk space usage
-- Add user quota system if needed
-
-## 🎯 Browser Compatibility
-
-| Browser | Version | Status |
-|---------|---------|--------|
-| Chrome | 90+ | ✅ Full Support |
-| Firefox | 88+ | ✅ Full Support |
-| Safari | 14+ | ✅ Full Support |
-| Edge | 90+ | ✅ Full Support |
-| Opera | 76+ | ✅ Full Support |
-
-## 📝 Roadmap
-
-### Phase 1 (Current)
-- ✅ Custom PDF viewer
-- ✅ AI vision integration
-- ✅ Dark/Light themes
-- ✅ Responsive design
-
-### Phase 2 (Planned)
-- [ ] Note-taking feature
-- [ ] Highlight annotations
-- [ ] Export chat conversations
-- [ ] Multiple PDF tabs
-
-### Phase 3 (Future)
-- [ ] Collaborative study rooms
-- [ ] Quiz generation from PDFs
-- [ ] Spaced repetition flashcards
-- [ ] Mobile app (React Native)
+### Caching Strategy
+| Resource | Cache Duration | Strategy |
+|----------|---------------|----------|
+| Uploaded PDFs | 1 year | Immutable, fingerprinted |
+| API Responses | 0 | No caching (dynamic) |
+| Static Assets | Browser default | Standard caching |
+| Model List | Session | In-memory cache |
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
+We welcome contributions! Please follow these guidelines:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. **Fork the Repository**
+2. **Create Feature Branch**: `git checkout -b feature/amazing-feature`
+3. **Commit Changes**: `git commit -m 'Add amazing feature'`
+4. **Push to Branch**: `git push origin feature/amazing-feature`
+5. **Open Pull Request**
+
+### Development Setup
+```bash
+# Clone repository
+git clone https://github.com/nexuss0781/Nexuss-Education.git
+
+# Navigate to directory
+cd Nexuss-Education
+
+# Configure API keys
+cp config.example.php api.php
+# Edit api.php with your keys
+
+# Start PHP development server
+php -S localhost:8000
+```
 
 ## 📄 License
 
-This project is licensed under the MIT License - see below for details:
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-```
-MIT License
-
-Copyright (c) 2024 Nexuss Education
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+### Attribution
+- **PDF.js** - Mozilla (Apache 2.0)
+- **Tailwind CSS** - Tailwind Labs (MIT)
+- **Marked** - Marked Project (MIT)
+- **OpenRouter API** - OpenRouter (Commercial)
 
 ## 🙏 Acknowledgments
 
-- [Puter.js](https://puter.com) - AI and Authentication platform
-- [PDF.js](https://mozilla.github.io/pdf.js/) - Mozilla's PDF rendering library
-- [TailwindCSS](https://tailwindcss.com) - Utility-first CSS framework
-- [Font Awesome](https://fontawesome.com) - Icon library
+- OpenRouter for providing unified API access to multiple AI models
+- PDF.js team for excellent PDF rendering library
+- Tailwind CSS for modern utility-first styling
+- All AI model providers for making their models accessible
 
 ## 📞 Support
 
 For issues, questions, or suggestions:
-- Open an issue on [GitHub](https://github.com/nexuss0781/Nexuss-Education/issues)
-- Email: nexuss0781@gmail.com
+- **GitHub Issues**: https://github.com/nexuss0781/Nexuss-Education/issues
+- **Email**: nexuss0781@gmail.com
 
 ---
 
-**Built with ❤️ for students and lifelong learners**
-
-*Last Updated: 2024*
+**Built with ❤️ for education by Nexuss Education**

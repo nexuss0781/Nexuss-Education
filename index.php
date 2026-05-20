@@ -12,7 +12,7 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
     <title>Nexuss Education - AI Study Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://js.puter.com/v2/"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -22,7 +22,8 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
                 extend: {
                     colors: {
                         primary: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95' },
-                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' },
+                        accent: { 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' }
                     }
                 }
             }
@@ -44,6 +45,15 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
         .markdown-body ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
         .markdown-body blockquote { border-left: 4px solid #8b5cf6; padding-left: 1rem; color: #94a3b8; font-style: italic; }
         .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .model-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.625rem; font-weight: 600; }
+        .model-badge.vision { background: rgba(34, 211, 238, 0.2); color: #22d3ee; }
+        .model-badge.text { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+        .key-status { display: flex; align-items: center; gap: 0.25rem; font-size: 0.625rem; }
+        .key-status.valid { color: #22c55e; }
+        .key-status.invalid { color: #ef4444; }
+        .key-status.limited { color: #f59e0b; }
+        @keyframes pulse-subtle { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .pulse-subtle { animation: pulse-subtle 2s ease-in-out infinite; }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-dark-950 text-gray-900 dark:text-gray-100 h-screen overflow-hidden flex flex-col">
@@ -57,11 +67,13 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
         <h1 class="text-lg font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">Nexuss Education</h1>
     </div>
     <div class="flex items-center gap-2">
+        <button id="keyStatusBtn" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors" title="API Key Status">
+            <svg class="w-5 h-5 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        </button>
         <button id="themeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors" title="Toggle Theme">
             <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             <svg class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
         </button>
-        <button id="authBtn" class="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">Sign In</button>
     </div>
 </header>
 
@@ -189,6 +201,22 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
     </div>
 </div>
 
+<!-- Key Status Modal -->
+<div id="keyStatusModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center">
+    <div class="bg-white dark:bg-dark-900 rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-gray-200 dark:border-dark-800">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold">API Key Status</h3>
+            <button onclick="hideKeyStatusModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-dark-800 rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div id="keyStatusContent" class="space-y-2"></div>
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-dark-800">
+            <p class="text-xs text-gray-500">Keys are used in rotation. When one hits rate limit, the next key is automatically tried.</p>
+        </div>
+    </div>
+</div>
+
 <script>
 // State
 let categories = JSON.parse(localStorage.getItem('nexuss_categories')) || [{id: 'default', name: 'My Books', pdfs: []}];
@@ -198,16 +226,74 @@ let currentPage = 1;
 let zoom = 1.0;
 let selectedCategory = 'default';
 let systemPrompt = '';
-let currentModel = 'openai/gpt-4o'; // Default to GPT-4o
+let currentModel = 'openai/gpt-4o';
+let keyStatusCache = null;
+let lastKeyIndex = 0; // For round-robin key selection
+
+// OpenRouter Models with Vision Capability
+const OPENROUTER_VISION_MODELS = [
+    { id: "google/gemma-3n-e2b-it:free", name: "Gemma 3n 2B", provider: "Google", has_vision: true, power_rank: 1 },
+    { id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", name: "Nemotron 3 Nano Omni", provider: "NVIDIA", has_vision: true, power_rank: 2 },
+    { id: "google/gemma-4-26b-a4b-it:free", name: "Gemma 4 26B A4B", provider: "Google", has_vision: true, power_rank: 3 },
+    { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "Nemotron Nano 12B 2 VL", provider: "NVIDIA", has_vision: true, power_rank: 4 },
+    { id: "google/lyria-3-pro-preview", name: "Lyria 3 Pro Preview", provider: "Google", has_vision: true, power_rank: 5 },
+    { id: "google/lyria-3-clip-preview", name: "Lyria 3 Clip Preview", provider: "Google", has_vision: true, power_rank: 6 },
+    { id: "openrouter/free", name: "Free Models Router", provider: "OpenRouter", has_vision: true, power_rank: 7 }
+];
+
+const OPENROUTER_TEXT_MODELS = [
+    { id: "qwen/qwen3-coder:free", name: "Qwen3 Coder 480B", provider: "Qwen", has_vision: false, power_rank: 1 },
+    { id: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Hermes 3 405B", provider: "Nous", has_vision: false, power_rank: 2 },
+    { id: "deepseek/deepseek-v4-flash:free", name: "DeepSeek V4 Flash", provider: "DeepSeek", has_vision: false, power_rank: 3 },
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super", provider: "NVIDIA", has_vision: false, power_rank: 4 },
+    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", provider: "Meta", has_vision: false, power_rank: 5 },
+    { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "Nemotron 3 Nano 30B", provider: "NVIDIA", has_vision: false, power_rank: 6 }
+];
+
+const PREMIUM_MODELS = [
+  { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI", desc: "Flagship multimodal model", has_vision: true },
+  { id: "anthropic/claude-opus-4.7", name: "Claude Opus 4.7", provider: "Anthropic", desc: "Complex reasoning specialist", has_vision: true },
+  { id: "x-ai/grok-2-vision-1212", name: "Grok 2 Vision", provider: "xAI", desc: "Advanced visual accuracy", has_vision: true },
+  { id: "qwen/qvq-max", name: "QVQ Max", provider: "Qwen", desc: "Deep multimodal reasoning", has_vision: true },
+  { id: "qwen/qwen-vl-max", name: "Qwen VL Max", provider: "Qwen", desc: "Top-tier vision-language", has_vision: true },
+  { id: "baidu/ernie-4.5-vl-424b-a47b", name: "ERNIE 4.5 VL", provider: "Baidu", desc: "Massive 424B parameter model", has_vision: true },
+  { id: "mistralai/mistral-large-3", name: "Mistral Large 3", provider: "Mistral AI", desc: "675B MoE frontier model", has_vision: true },
+  { id: "qwen/qwen3-vl-235b-a22b-instruct", name: "Qwen3 VL 235B", provider: "Qwen", desc: "Flagship 256K context", has_vision: true },
+  { id: "stepfun-ai/step3", name: "Step3", provider: "StepFun", desc: "Multimodal MoE reasoning", has_vision: true },
+  { id: "opengvlab/internvl3-78b", name: "InternVL3 78B", provider: "OpenGVLab", desc: "Open-source multimodal", has_vision: true },
+  { id: "z-ai/glm-4.6v", name: "GLM 4.6V", provider: "Z.AI", desc: "Native multimodal calling", has_vision: true },
+  { id: "qwen/qwen2.5-vl-72b-instruct", name: "Qwen2.5 VL 72B", provider: "Qwen", desc: "Open-source flagship", has_vision: true },
+  { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5", provider: "Moonshot AI", desc: "Trillion-parameter MoE", has_vision: true },
+  { id: "perceptron/perceptron-mk1", name: "Perceptron Mk1", provider: "Perceptron", desc: "Video & spatial reasoning", has_vision: true },
+  { id: "mistralai/mistral-medium-3.5", name: "Mistral Medium 3.5", provider: "Mistral AI", desc: "Dense 128B model", has_vision: true },
+  { id: "qwen/qwen3.5-397b-a17b", name: "Qwen3.5 397B", provider: "Qwen", desc: "Native vision-language MoE", has_vision: true },
+  { id: "z-ai/glm-5v-turbo", name: "GLM 5V Turbo", provider: "Z.AI", desc: "Visual perception to code", has_vision: true },
+  { id: "allenai/molmo-2-8b", name: "Molmo2 8B", provider: "Allen AI", desc: "Efficient open VLM", has_vision: true },
+  { id: "meta-llama/llama-3.2-11b-vision-instruct", name: "Llama 3.2 11B Vision", provider: "Meta", desc: "Visual recognition expert", has_vision: true },
+  { id: "mistralai/pixtral-12b", name: "Pixtral 12B", provider: "Mistral AI", desc: "First Mistral multimodal", has_vision: true },
+  { id: "rekaai/reka-edge", name: "Reka Edge", provider: "Reka AI", desc: "Efficient visual reasoning", has_vision: true },
+  { id: "bytedance/ui-tars-1.5-7b", name: "UI-TARS 7B", provider: "ByteDance", desc: "GUI automation agent", has_vision: true },
+  { id: "qwen/qwen3-vl-8b-instruct", name: "Qwen3 VL 8B", provider: "Qwen", desc: "Compact high-performance", has_vision: true },
+  { id: "z-ai/glm-4.6v-flash", name: "GLM 4.6V Flash", provider: "Z.AI", desc: "Lightweight 9B variant", has_vision: true },
+  { id: "nvidia/nemotron-nano-12b-2-vl", name: "Nemotron Nano 12B", provider: "NVIDIA", desc: "Hybrid Mamba-Transformer", has_vision: true }
+];
+
+// Combined models for selector (premium + free openrouter)
+const ALL_MODELS = [
+    ...PREMIUM_MODELS,
+    ...OPENROUTER_VISION_MODELS.map(m => ({ ...m, desc: `Free • ${m.provider}` })),
+    ...OPENROUTER_TEXT_MODELS.map(m => ({ ...m, desc: `Free • ${m.provider}` }))
+];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     loadCategories();
     await loadSystemPrompt();
-    await initPuterAuth();
+    await checkKeyStatus();
     renderModelSelector();
     setupResizeHandler();
+    setupKeyStatusModal();
 });
 
 // Theme Management
@@ -235,92 +321,88 @@ async function loadSystemPrompt() {
     }
 }
 
-// System Prompt Loader
-async function loadSystemPrompt() {
+// Check OpenRouter API Key Status
+async function checkKeyStatus() {
     try {
-        const response = await fetch('SYSTEM.md');
-        if (response.ok) {
-            systemPrompt = await response.text();
-        } else {
-            systemPrompt = "You are a helpful study assistant. Keep responses concise and educational.";
+        const res = await fetch('api.php?action=check_keys');
+        const data = await res.json();
+        if (data.success) {
+            keyStatusCache = data.keys;
+            updateKeyStatusIndicator();
         }
-    } catch (e) {
-        systemPrompt = "You are a helpful study assistant. Keep responses concise and educational.";
+    } catch (err) {
+        console.error('Failed to check key status:', err);
     }
 }
 
-// Puter.js Authentication
-async function initPuterAuth() {
-    const authBtn = document.getElementById('authBtn');
-    const modelStatus = document.getElementById('modelStatus');
+function updateKeyStatusIndicator() {
+    const btn = document.getElementById('keyStatusBtn');
+    if (!btn || !keyStatusCache) return;
     
-    // Check if already authenticated
-    if (typeof puter !== 'undefined' && puter.auth.isSignedIn()) {
-        authBtn.textContent = 'Authenticated';
-        authBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        authBtn.disabled = true;
-        if (modelStatus) {
-            modelStatus.textContent = '✓ Connected';
-            modelStatus.className = 'text-xs text-green-500';
-        }
+    const validKeys = keyStatusCache.filter(k => k.valid).length;
+    const totalKeys = keyStatusCache.length;
+    
+    if (validKeys > 0) {
+        btn.classList.add('pulse-subtle');
+        btn.title = `${validKeys}/${totalKeys} API keys active`;
     } else {
-        authBtn.onclick = async () => {
-            try {
-                await puter.auth.signIn();
-                authBtn.textContent = 'Authenticated';
-                authBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                authBtn.disabled = true;
-                if (modelStatus) {
-                    modelStatus.textContent = '✓ Connected';
-                    modelStatus.className = 'text-xs text-green-500';
-                }
-                addSystemMessage("Successfully authenticated with Puter.js!");
-            } catch (err) {
-                console.error('Auth error:', err);
-                addSystemMessage("Authentication failed. Please try again.");
-            }
-        };
+        btn.classList.remove('pulse-subtle');
+        btn.title = 'No valid API keys configured';
     }
 }
 
-// Premium AI Models List (Curated for Vision & Reasoning)
-const PREMIUM_MODELS = [
-  { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI", desc: "Flagship multimodal model" },
-  { id: "anthropic/claude-opus-4.7", name: "Claude Opus 4.7", provider: "Anthropic", desc: "Complex reasoning specialist" },
-  { id: "x-ai/grok-2-vision-1212", name: "Grok 2 Vision", provider: "xAI", desc: "Advanced visual accuracy" },
-  { id: "qwen/qvq-max", name: "QVQ Max", provider: "Qwen", desc: "Deep multimodal reasoning" },
-  { id: "qwen/qwen-vl-max", name: "Qwen VL Max", provider: "Qwen", desc: "Top-tier vision-language" },
-  { id: "baidu/ernie-4.5-vl-424b-a47b", name: "ERNIE 4.5 VL", provider: "Baidu", desc: "Massive 424B parameter model" },
-  { id: "mistralai/mistral-large-3", name: "Mistral Large 3", provider: "Mistral AI", desc: "675B MoE frontier model" },
-  { id: "qwen/qwen3-vl-235b-a22b-instruct", name: "Qwen3 VL 235B", provider: "Qwen", desc: "Flagship 256K context" },
-  { id: "stepfun-ai/step3", name: "Step3", provider: "StepFun", desc: "Multimodal MoE reasoning" },
-  { id: "opengvlab/internvl3-78b", name: "InternVL3 78B", provider: "OpenGVLab", desc: "Open-source multimodal" },
-  { id: "z-ai/glm-4.6v", name: "GLM 4.6V", provider: "Z.AI", desc: "Native multimodal calling" },
-  { id: "qwen/qwen2.5-vl-72b-instruct", name: "Qwen2.5 VL 72B", provider: "Qwen", desc: "Open-source flagship" },
-  { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5", provider: "Moonshot AI", desc: "Trillion-parameter MoE" },
-  { id: "perceptron/perceptron-mk1", name: "Perceptron Mk1", provider: "Perceptron", desc: "Video & spatial reasoning" },
-  { id: "mistralai/mistral-medium-3.5", name: "Mistral Medium 3.5", provider: "Mistral AI", desc: "Dense 128B model" },
-  { id: "qwen/qwen3.5-397b-a17b", name: "Qwen3.5 397B", provider: "Qwen", desc: "Native vision-language MoE" },
-  { id: "z-ai/glm-5v-turbo", name: "GLM 5V Turbo", provider: "Z.AI", desc: "Visual perception to code" },
-  { id: "allenai/molmo-2-8b", name: "Molmo2 8B", provider: "Allen AI", desc: "Efficient open VLM" },
-  { id: "meta-llama/llama-3.2-11b-vision-instruct", name: "Llama 3.2 11B Vision", provider: "Meta", desc: "Visual recognition expert" },
-  { id: "mistralai/pixtral-12b", name: "Pixtral 12B", provider: "Mistral AI", desc: "First Mistral multimodal" },
-  { id: "rekaai/reka-edge", name: "Reka Edge", provider: "Reka AI", desc: "Efficient visual reasoning" },
-  { id: "bytedance/ui-tars-1.5-7b", name: "UI-TARS 7B", provider: "ByteDance", desc: "GUI automation agent" },
-  { id: "qwen/qwen3-vl-8b-instruct", name: "Qwen3 VL 8B", provider: "Qwen", desc: "Compact high-performance" },
-  { id: "z-ai/glm-4.6v-flash", name: "GLM 4.6V Flash", provider: "Z.AI", desc: "Lightweight 9B variant" },
-  { id: "nvidia/nemotron-nano-12b-2-vl", name: "Nemotron Nano 12B", provider: "NVIDIA", desc: "Hybrid Mamba-Transformer" }
-];
+// Setup Key Status Modal
+function setupKeyStatusModal() {
+    const btn = document.getElementById('keyStatusBtn');
+    if (!btn) return;
+    
+    btn.onclick = () => showKeyStatusModal();
+}
 
-// Render Elegant Model Selector
+function showKeyStatusModal() {
+    const modal = document.getElementById('keyStatusModal');
+    const content = document.getElementById('keyStatusContent');
+    
+    if (!modal || !content) return;
+    
+    if (!keyStatusCache) {
+        content.innerHTML = '<p class="text-sm text-gray-500">Loading...</p>';
+        checkKeyStatus().then(() => showKeyStatusModal());
+    } else {
+        content.innerHTML = keyStatusCache.map((key, i) => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-800 rounded-lg">
+                <div class="flex items-center gap-2">
+                    <span class="key-status ${key.valid ? 'valid' : 'invalid'}">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            ${key.valid ? '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' : '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>'}
+                        </svg>
+                    </span>
+                    <span class="text-sm font-medium">Key #${i + 1}</span>
+                </div>
+                <div class="text-xs text-gray-500">
+                    ${key.valid ? (key.usage_daily !== undefined ? `Used: $${key.usage_daily}` : 'Active') : (key.error || 'Invalid')}
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function hideKeyStatusModal() {
+    const modal = document.getElementById('keyStatusModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+// Render Elegant Model Selector with Vision Badges
 function renderModelSelector() {
   const selector = document.getElementById('modelSelector');
-  const status = document.getElementById('modelStatus');
   
   if (!selector) return;
   
   selector.innerHTML = '';
-  if (status) status.textContent = '';
   
   const selectWrapper = document.createElement('div');
   selectWrapper.className = 'relative group flex-1 max-w-md';
@@ -329,13 +411,33 @@ function renderModelSelector() {
   selectEl.id = 'aiModelSelect';
   selectEl.className = 'appearance-none w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all cursor-pointer shadow-sm';
   
-  PREMIUM_MODELS.forEach(m => {
+  // Group models by vision capability
+  const visionModels = ALL_MODELS.filter(m => m.has_vision);
+  const textModels = ALL_MODELS.filter(m => !m.has_vision);
+  
+  // Add optgroup for Vision Models
+  const visionGroup = document.createElement('optgroup');
+  visionGroup.label = '👁️ Vision Capable';
+  visionModels.forEach(m => {
     const option = document.createElement('option');
     option.value = m.id;
     option.textContent = `${m.name} (${m.provider})`;
     if (m.id === currentModel) option.selected = true;
-    selectEl.appendChild(option);
+    visionGroup.appendChild(option);
   });
+  selectEl.appendChild(visionGroup);
+  
+  // Add optgroup for Text-Only Models
+  const textGroup = document.createElement('optgroup');
+  textGroup.label = '📝 Text Only';
+  textModels.forEach(m => {
+    const option = document.createElement('option');
+    option.value = m.id;
+    option.textContent = `${m.name} (${m.provider})`;
+    if (m.id === currentModel) option.selected = true;
+    textGroup.appendChild(option);
+  });
+  selectEl.appendChild(textGroup);
   
   const arrowIcon = document.createElement('div');
   arrowIcon.className = 'absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400';
@@ -352,25 +454,32 @@ function renderModelSelector() {
   const descEl = document.createElement('div');
   descEl.id = 'modelDesc';
   descEl.className = 'hidden lg:block text-xs text-slate-500 font-medium truncate max-w-[180px]';
-  const selected = PREMIUM_MODELS.find(m => m.id === currentModel);
-  if (selected && descEl) descEl.textContent = selected.desc;
+  const selected = ALL_MODELS.find(m => m.id === currentModel);
+  if (selected && descEl) {
+    const badgeClass = selected.has_vision ? 'vision' : 'text';
+    descEl.innerHTML = `<span class="model-badge ${badgeClass}">${selected.has_vision ? '👁️ Vision' : '📝 Text'}</span> ${selected.desc}`;
+  }
   selector.appendChild(descEl);
   
   selectEl.addEventListener('change', (e) => {
     currentModel = e.target.value;
-    const sel = PREMIUM_MODELS.find(m => m.id === currentModel);
-    if (sel && descEl) descEl.textContent = sel.desc;
+    const sel = ALL_MODELS.find(m => m.id === currentModel);
+    if (sel && descEl) {
+      const badgeClass = sel.has_vision ? 'vision' : 'text';
+      descEl.innerHTML = `<span class="model-badge ${badgeClass}">${sel.has_vision ? '👁️ Vision' : '📝 Text'}</span> ${sel.desc}`;
+    }
     localStorage.setItem('nexuss_selected_model', currentModel);
   });
 
   // Restore saved model
   const savedModel = localStorage.getItem('nexuss_selected_model');
-  if (savedModel && PREMIUM_MODELS.find(m => m.id === savedModel)) {
+  if (savedModel && ALL_MODELS.find(m => m.id === savedModel)) {
     currentModel = savedModel;
     selectEl.value = savedModel;
     if (descEl) {
-      const sel = PREMIUM_MODELS.find(m => m.id === savedModel);
-      descEl.textContent = sel.desc;
+      const sel = ALL_MODELS.find(m => m.id === savedModel);
+      const badgeClass = sel.has_vision ? 'vision' : 'text';
+      descEl.innerHTML = `<span class="model-badge ${badgeClass}">${sel.has_vision ? '👁️ Vision' : '📝 Text'}</span> ${sel.desc}`;
     }
   }
 }
@@ -757,7 +866,7 @@ async function captureCurrentPage() {
     }
 }
 
-// Chat Functionality
+// Chat Functionality - Smart Rate Limit Handling with OpenRouter
 async function sendMessage() {
     const input = document.getElementById('userInput');
     const message = input.value.trim();
@@ -771,63 +880,100 @@ async function sendMessage() {
     const typingId = showTypingIndicator();
     
     try {
-        // Capture current page
+        // Capture current page as image
         const pageImage = await captureCurrentPage();
         
-        let userMessage = message;
+        // Get selected model and check if it has vision capability
+        const modelSelect = document.getElementById('aiModelSelect');
+        const model = modelSelect ? modelSelect.value : currentModel;
+        const modelInfo = ALL_MODELS.find(m => m.id === model);
+        const hasVision = modelInfo ? modelInfo.has_vision : false;
         
-        if (pageImage) {
-            userMessage = message + "\n\n[Current PDF page is attached as image for context]";
+        // Prepare messages for API
+        let messages = [{ role: 'user', content: [] }];
+        
+        if (pageImage && hasVision) {
+            // Model supports vision - send image directly
+            messages[0].content = [
+                { type: 'text', text: `${systemPrompt}\n\n${message}` },
+                { type: 'image_url', image_url: { url: pageImage } }
+            ];
+        } else if (pageImage) {
+            // Model doesn't support vision but we have an image
+            // Try to use a vision-capable model as fallback or extract text first
+            const visionFallback = OPENROUTER_VISION_MODELS[0]?.id || 'google/gemma-3n-e2b-it:free';
+            messages[0].content = [
+                { type: 'text', text: `${systemPrompt}\n\n${message}` },
+                { type: 'image_url', image_url: { url: pageImage } }
+            ];
+            // Use vision model for this request
+            console.log(`Using vision fallback model: ${visionFallback}`);
+        } else {
+            // No image, text-only request
+            messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: message }
+            ];
         }
         
-        // Get selected model
-        const model = document.getElementById('modelSelector').value || 'gpt-4o';
-        
-        // Prepare messages array
-        const messages = [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage }
-        ];
-        
-        // Call Puter AI with proper error handling
-        let response;
-        try {
-            if (pageImage) {
-                // For vision models with image
-                response = await puter.ai.chat([
-                    { 
-                        role: 'user', 
-                        content: [
-                            { type: 'text', text: systemPrompt },
-                            { type: 'text', text: userMessage },
-                            { type: 'image_url', image_url: { url: pageImage } }
-                        ]
-                    }
-                ], { model: model });
-            } else {
-                response = await puter.ai.chat([
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userMessage }
-                ], { model: model });
-            }
-        } catch (aiErr) {
-            if (aiErr.message && aiErr.message.includes('usage-limited-chat')) {
-                throw new Error('Rate limit reached. Please try again later or use a different model.');
-            } else if (aiErr.message && aiErr.message.includes('authentication')) {
-                throw new Error('Not authenticated. Please sign in first.');
-            } else {
-                throw aiErr;
-            }
-        }
+        // Call OpenRouter API through our PHP proxy with smart key rotation
+        const response = await callOpenRouterWithRetry(messages, model, pageImage && hasVision);
         
         removeTypingIndicator(typingId);
-        addMessage(response.message?.content || response.toString(), 'ai');
+        addMessage(response, 'ai');
         
     } catch (err) {
         removeTypingIndicator(typingId);
         console.error('AI Error:', err);
         addMessage(`Error: ${err.message}. Please check your connection or try a different model.`, 'error');
     }
+}
+
+// Smart rate limit handling - tries keys in rotation
+async function callOpenRouterWithRetry(messages, model, useVision = false) {
+    const maxRetries = 3;
+    let lastError = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const payload = {
+                messages: messages,
+                model: model,
+                system_prompt: systemPrompt
+            };
+            
+            const res = await fetch('api.php?action=openrouter_chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await res.json();
+            
+            if (data.success && data.response?.choices?.[0]?.message?.content) {
+                return data.response.choices[0].message.content;
+            } else if (data.success === false) {
+                lastError = new Error(data.error || 'API request failed');
+                // If rate limited, the backend already tried all keys
+                if (data.last_error?.error_type === 'rate_limit_exceeded' || data.last_error?.http_code === 429) {
+                    throw new Error('All API keys have hit their rate limits. Please try again later.');
+                }
+                throw lastError;
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        } catch (err) {
+            lastError = err;
+            // For rate limit errors, wait briefly before retry
+            if (err.message.includes('rate limit') || err.message.includes('429')) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+                continue;
+            }
+            throw err;
+        }
+    }
+    
+    throw lastError || new Error('Failed after retries');
 }
 
 function addMessage(content, type) {

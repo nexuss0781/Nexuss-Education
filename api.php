@@ -1,4 +1,11 @@
 <?php
+// Configuration - Add your OpenRouter API keys here
+$OPENROUTER_KEYS = [
+    "",  // Add your first key
+    "",  // Add your second key
+    "",  // Add more keys as needed
+];
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -30,6 +37,134 @@ if (empty($action) && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = $input['action'] ?? '';
         }
     }
+}
+
+// Handle OpenRouter API proxy
+if ($action === 'openrouter_chat') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $messages = $input['messages'] ?? [];
+    $model = $input['model'] ?? 'openai/gpt-4o';
+    $systemPrompt = $input['system_prompt'] ?? '';
+    
+    if (empty($messages)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'No messages provided']);
+        exit;
+    }
+    
+    // Prepare the request body for OpenRouter
+    $requestBody = [
+        'model' => $model,
+        'messages' => array_merge(
+            !empty($systemPrompt) ? [['role' => 'system', 'content' => $systemPrompt]] : [],
+            $messages
+        ),
+        'max_tokens' => 4096,
+        'temperature' => 0.7
+    ];
+    
+    // Try each key until one works
+    $lastError = null;
+    $response = null;
+    
+    foreach ($OPENROUTER_KEYS as $index => $apiKey) {
+        if (empty($apiKey)) continue;
+        
+        $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($requestBody));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+            'HTTP-Referer: ' . ($_SERVER['HTTP_HOST'] ?? 'http://localhost'),
+            'X-Title: Nexuss Education'
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        if ($result !== false && $httpCode === 200) {
+            $response = json_decode($result, true);
+            // Include which key index was used (for debugging)
+            $response['_key_index'] = $index;
+            break;
+        } else {
+            $errorData = json_decode($result, true);
+            $lastError = [
+                'key_index' => $index,
+                'http_code' => $httpCode,
+                'error' => $curlError ?: ($errorData['error']['message'] ?? 'Unknown error'),
+                'error_type' => $errorData['error']['type'] ?? 'unknown'
+            ];
+            
+            // If it's a rate limit error, try next key
+            if ($httpCode === 429 || isset($errorData['error']['code']) && $errorData['error']['code'] === 'rate_limit_exceeded') {
+                continue; // Try next key
+            }
+            // For other errors, stop trying
+            break;
+        }
+    }
+    
+    if ($response) {
+        echo json_encode(['success' => true, 'response' => $response]);
+    } else {
+        http_response_code(502);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'All API keys failed',
+            'last_error' => $lastError
+        ]);
+    }
+    exit;
+}
+
+// Handle OpenRouter key status check
+if ($action === 'check_keys') {
+    $keyStatuses = [];
+    
+    foreach ($OPENROUTER_KEYS as $index => $apiKey) {
+        if (empty($apiKey)) {
+            $keyStatuses[] = ['index' => $index, 'valid' => false, 'error' => 'Empty key'];
+            continue;
+        }
+        
+        $ch = curl_init('https://openrouter.ai/api/v1/key');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $apiKey
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($result !== false && $httpCode === 200) {
+            $data = json_decode($result, true);
+            $keyStatuses[] = [
+                'index' => $index,
+                'valid' => true,
+                'data' => $data['data'] ?? null,
+                'usage_daily' => $data['data']['usage_daily'] ?? 0,
+                'limit_remaining' => $data['data']['limit_remaining'] ?? null
+            ];
+        } else {
+            $errorData = json_decode($result, true);
+            $keyStatuses[] = [
+                'index' => $index,
+                'valid' => false,
+                'error' => $errorData['error']['message'] ?? 'Invalid key'
+            ];
+        }
+    }
+    
+    echo json_encode(['success' => true, 'keys' => $keyStatuses]);
+    exit;
 }
 
 // Handle category management
